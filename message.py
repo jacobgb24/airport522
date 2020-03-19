@@ -77,7 +77,7 @@ class Message:
         if self.type == MessageType.AIRCRAFT_ID:
             return handle_identity(self.typecode, self.raw_data)
         # priority: TC 19,11,29,31 (maybe)
-        
+
     def __str__(self):
         if self.valid:
             return ('#' * 100) + f'\n{self.bin_msg}\n{self.icao}: DF={self.df}, CA={self.capability}, TC={self.typecode}, ' \
@@ -102,6 +102,6 @@ def handle_identity(tc, data):
     for i in range(3, len(data), 6):
         craft_id += char_table[bin2int(data[i:i+6])]
 
-    return craft_type, craft_id
+    return craft_type, craft_id.rstrip('_')
 
 
