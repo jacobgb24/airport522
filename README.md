@@ -23,6 +23,7 @@ radio specific config.
 **Documents**
 * [mode-s.org](https://mode-s.org/decode/) - Information about high-level decoding of ADS-B packets. Does not go into
 detail on how to get messages (e.g. getting hex from radio).
+* [PyModeS Wiki](https://github.com/junzis/pyModeS/wiki) - Goes into more depth in some places than mode-s.org
 * [PlutoSDR](https://wiki.analog.com/university/tools/pluto/users) - Pluto wiki. Not very helpful, but somewhat helped
 with drivers
 

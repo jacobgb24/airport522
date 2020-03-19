@@ -1,12 +1,19 @@
+# constants
+MSG_LEN = 112
 
-
-def bits2hex(b: str) -> str:
+# data format conversion
+def bin2hex(b: str) -> str:
     return hex(int(b, 2))[2:]
 
 
-def bits2int(b: str) -> int:
+def bin2int(b: str) -> int:
     return int(b, 2)
 
 
-def int2bits(i: int) -> str:
+def int2bin(i: int) -> str:
     return format(i, 'b')
+
+
+# unit conversion
+def knot2mph(knots) -> float:
+    return knots * 1.150779
