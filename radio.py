@@ -18,7 +18,6 @@ class Radio:
         self.sdr.rx_lo = int(1090e6)  # 1090MHz
         self.sdr.sample_rate = int(2e6)  # protocol rate of 2 bits per microsecond
         self.sdr.rx_rf_bandwidth = self.sdr.sample_rate
-        self.sdr.tx_cyclic_buffer = True
         self.sdr.gain_control_mode = 'slow_attack'
 
         self.raw_buf = []
@@ -44,7 +43,7 @@ class Radio:
                 # print('PREAMB' * 25)
                 start = i + len(self.PREAMB_KEY)
                 end = start + (MSG_LEN + 1) * 2  # multiply by 2 since one bit == two values
-                msg = Message(self.raw_buf[start:end])
+                msg = Message.from_raw(self.raw_buf[start:end])
                 if msg.valid:
                     print('\n' + str(msg))
 
@@ -63,7 +62,7 @@ class Radio:
             .mean(axis=1)
         )
         self.noise_floor = min(min(means), self.noise_floor)
-        return 3.162 * self.noise_floor  # not sure how they get this, but should be ~10dB
+        return 4 * self.noise_floor  # not sure how they get this, but should be ~10dB
 
     @staticmethod
     def is_preamble(data) -> bool:

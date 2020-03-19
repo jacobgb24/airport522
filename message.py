@@ -4,6 +4,10 @@ from enum import Enum
 
 class MessageType(Enum):
     AIRCRAFT_ID = range(1, 5)
+    SURF_POSITION = range(5, 9)
+    AIRBORNE_POSITION = list(range(9, 19)) + list(range(20, 23))
+    AIRBORNE_VELOCITY = range(19, 20)
+
 
     @classmethod
     def from_tc(cls, tc):
@@ -15,8 +19,8 @@ class MessageType(Enum):
 class Message:
     CHECK_GEN = '1111111111111010000001001'  # used as key in crc
 
-    def __init__(self, raw):
-        self.bin_msg = self._get_bin_msg(raw)
+    def __init__(self, bin_msg):
+        self.bin_msg = bin_msg
         self.valid = self._is_valid()
         if self.valid:
             # these are all straight from headers
@@ -29,7 +33,15 @@ class Message:
             self.type = MessageType.from_tc(self.typecode)
             self.data = self._interpret_data()
 
-    def _get_bin_msg(self, raw):
+    @classmethod
+    def from_raw(cls, raw):
+        """Create a Message from raw signal (uses ``raw2bin()``"""
+        return cls(cls.raw2bin(raw))
+
+    @staticmethod
+    def raw2bin(raw):
+        if len(raw) == 0:
+            return ''
         thresh = max(raw) * .2  # want data at least this strong
         msg = ''
         for i in range(0, len(raw), 2):
@@ -62,14 +74,14 @@ class Message:
         return True
 
     def _interpret_data(self):
-        print(f"SAVE: {self.bin_msg}")
         if self.type == MessageType.AIRCRAFT_ID:
             return handle_identity(self.typecode, self.raw_data)
-
+        # priority: TC 19,11,29,31 (maybe)
+        
     def __str__(self):
         if self.valid:
             return ('#' * 100) + f'\n{self.bin_msg}\n{self.icao}: DF={self.df}, CA={self.capability}, TC={self.typecode}, ' \
-                               f'TYPE={self.type}\n\tDATA={self.data}'
+                               f'TYPE={self.type.name}\n\tDATA={self.data}'
         else:
             return f'Invalid ({self.bin_msg})'
 
@@ -90,6 +102,6 @@ def handle_identity(tc, data):
     for i in range(3, len(data), 6):
         craft_id += char_table[bin2int(data[i:i+6])]
 
-    return craft_type, id
+    return craft_type, craft_id
 
 

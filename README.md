@@ -30,3 +30,4 @@ with drivers
 
 ## Milestones
 * 3/17/20 - Read the first live ICAO address and confirmed airplane with Flightradar24. 
+* 3/19/20 - Decoded first `Aircraft Identification` message. Hello `UAL1798`!
