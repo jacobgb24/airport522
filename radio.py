@@ -28,11 +28,12 @@ class Radio:
         self.raw_buf.extend(np.absolute(raw).tolist())
 
         if len(self.raw_buf) > self.BUFF_SIZE:
-            self.handle_raw()
+            return self.handle_raw()
+        return []
 
     def handle_raw(self):
         min_amp = self._get_min_amp()
-
+        msgs = []
         i = 0
         while i < len(self.raw_buf):
             if self.raw_buf[i] < min_amp:
@@ -44,13 +45,12 @@ class Radio:
                 start = i + len(self.PREAMB_KEY)
                 end = start + (MSG_LEN + 1) * 2  # multiply by 2 since one bit == two values
                 msg = Message.from_raw(self.raw_buf[start:end])
-                if msg.valid:
-                    print('\n' + str(msg))
-
+                msgs.append(msg)
                 i = end
             else:
                 i += 1
         self.raw_buf = self.raw_buf[i:]
+        return msgs
 
     def _get_min_amp(self):
         """Calculate noise floor. This code almost entirely from pyModeS"""
