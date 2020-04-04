@@ -1,6 +1,7 @@
+from data_handler import DataHandler, DataPoint
 from utils import *
 from enum import Enum
-import numpy as np
+
 
 class MessageType(Enum):
     AIRCRAFT_ID = range(1, 5)
@@ -12,7 +13,6 @@ class MessageType(Enum):
     TARGET_STATE_STATUS = range(29, 30)
     OPERATION_STATUS = range(31, 32)
     UNKNOWN = range(0, 32)
-
 
     @classmethod
     def from_tc(cls, tc):
@@ -34,10 +34,10 @@ class Message:
             self.icao = bin2hex(self.bin_msg[8:32])
             self.capability = bin2int(self.bin_msg[5:8])
             self.typecode = bin2int(self.bin_msg[32:37])
-            self.raw_data = self.bin_msg[37:88]
+            self.bin_data = self.bin_msg[37:88]
             # these require some extra work
             self.type = MessageType.from_tc(self.typecode)
-            self.data = self._interpret_data()
+            self.data = DataHandler.dispatch(self)
 
     @classmethod
     def from_raw(cls, raw):
@@ -79,13 +79,6 @@ class Message:
 
         return True
 
-    def _interpret_data(self):
-        if self.type == MessageType.AIRCRAFT_ID:
-            return handle_identity(self.typecode, self.raw_data)
-        if self.type == MessageType.AIRBORNE_VELOCITY:
-            return handle_velocity(self.typecode, self.raw_data)
-        # priority: TC 19,11,29,31 (maybe)
-
     def __str__(self):
         if self.valid:
             return ('#' * MSG_LEN) + f'\n{self.bin_msg}\n{self.icao}: DF={self.df}, CA={self.capability}, TC={self.typecode}, ' \
@@ -94,50 +87,6 @@ class Message:
             return f'Invalid ({self.bin_msg})'
 
 
-def handle_identity(tc, data):
-    ret = {}
-    # table to translate int to character
-    char_table = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######"
-    # table to translate tc,ec into vehicle class
-    class_table = [[],  # tc = 1 is reserved
-                   ["N/A", "Surface Emergency Vehicle", "Surface Service Vehicle", "Fixed Ground Obstruction"],
-                   ["N/A", "Glider/Sailplane", "Lighter-Than-Air", "Parachutist/Skydiver",
-                    "Ultralight/Hang-glider/Paraglider", "", "UAV", "Space Vehicle"],
-                   ["N/A", "Light", "Medium 1", "Medium 2", "High Vortex Aircraft", "Heavy", "High Performance",
-                    "Rotorcraft"]]
-    ec = bin2int(data[:3])
-    ret['type'] = class_table[tc - 1][ec]
-    craft_id = ''
-    for i in range(3, len(data), 6):
-        craft_id += char_table[bin2int(data[i:i+6])]
-    ret['id'] = craft_id
-    return ret
-
-
-def handle_velocity(tc, data):
-    ret = {}
-    subtype = bin2int(data[:3])
-    # ret['supersonic'] = subtype == 2 or subtype == 4
-    ret['horz_type'] = 'GROUND' if subtype <= 2 else 'AIR'
-    ic = data[3] == 1  # ???
-
-    if subtype <= 2:  # GROUND SPEED
-        # sign and value from data
-        v_we = (-1 if bin2bool(data[8]) else 1) * (bin2int(data[9:19]) - 1)
-        v_sn = (-1 if bin2bool(data[19]) else 1) * (bin2int(data[20:30]) - 1)
-
-        v = np.sqrt(np.square(v_we) + np.square(v_sn))
-        h_deg = (np.rad2deg(np.arctan2(v_we, v_sn)) + 360) % 360
-        ret['horz_vel (kt)'] = round(v, 3)
-        ret['heading (deg)'] = round(h_deg, 3)
-
-    ret['vert_type'] = 'BARO' if bin2bool(data[28]) else 'GEO'
-    # sign 0=up, 1=down
-    v_ud = (-1 if bin2bool(data[31]) == "1" else 1) * (bin2int(data[32:41]) - 1) * 64
-
-    ret['vert_vel (ft/min)'] = v_ud
-    
-    return ret
 
 
 
