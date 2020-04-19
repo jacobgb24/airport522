@@ -11,6 +11,7 @@ class Aircraft:
         self.attrs = attrs
 
     def update(self, new_attrs):
+        self.last_update = time()
         self.attrs.update(new_attrs)
 
     def __getitem__(self, item):
@@ -18,9 +19,6 @@ class Aircraft:
             return DataPoint('Unknown', 'Unknown', '')
         return self.attrs[item]
 
-    def __setitem__(self, key, value):
-        self.attrs[key] = value
-        self.last_update = time()
 
     def __eq__(self, other: Any):
         if isinstance(other, Aircraft):
@@ -28,6 +26,9 @@ class Aircraft:
         elif isinstance(other, str):
             return other == self.icao
         return False
+
+    def __lt__(self, other):
+        return self.last_update > other.last_update
 
 
 class AircraftGroup:
@@ -38,5 +39,6 @@ class AircraftGroup:
         for craft in cls.aircraft:
             if craft == msg.icao:
                 craft.update(msg.data)
-                return
-        cls.aircraft.append(Aircraft(msg.icao, msg.data))
+                break
+        else:
+            cls.aircraft.insert(0, Aircraft(msg.icao, msg.data))

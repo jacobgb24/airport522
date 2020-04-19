@@ -99,7 +99,7 @@ def update_aircraft_map(fig, lat, lon, icao_id):
 if __name__ == '__main__':
     utils.set_loc_ip()
     # radio = Radio()
-    radio = MockRadio('data/samples/general.txt', 1000, True)
+    radio = MockRadio('data/samples/three.txt', 1000, True)
 
     tracked_aircraft = {}
     plot_map.add_trace(go.Scattermapbox(lat=[utils.REF_LAT], lon=[utils.REF_LON], mode='markers',

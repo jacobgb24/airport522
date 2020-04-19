@@ -94,7 +94,7 @@ class DataHandler:
 
         nl = np.floor(2 * np.pi / (np.arccos(1 - ((1 - np.cos(np.pi / 30)) / np.square(np.cos(lat * np.pi / 180))))))
 
-        d_lon = (360 / nl - (1 if is_odd else 0)) if nl - 1 > 0 else 360
+        d_lon = (360 / (nl - (1 if is_odd else 0))) if nl - (1 if is_odd else 0) > 0 else 360
         lon_ind = np.floor(utils.REF_LON / d_lon) + np.floor((utils.REF_LON % d_lon) / d_lon - lon_cpr + 0.5)
         lon = d_lon * (lon_ind + lon_cpr)
         vals['lon'] = DataPoint('Longitude', lon, 'deg')
