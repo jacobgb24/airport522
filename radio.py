@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import time
 # so stupid it installs here, but too lazy to fix at this point
 sys.path.append('/usr/lib/python3.6/site-packages/')
 import adi
@@ -78,3 +79,28 @@ class Radio:
                 return False
         return True
 
+
+class MockRadio:
+
+    def __init__(self, in_file, rate=1000, repeat=True):
+        self.msgs = []
+        self.next_msg = 0
+        self.should_repeat = repeat
+        self.stop_send = False
+        with open(in_file, 'r') as inp:
+            for m in inp.readlines():
+                if not m.startswith('#'):
+                    self.msgs.append(Message(m.strip()))
+        self.rate = rate
+        self.time = int(round(time.time() * 1000))
+
+    def recv(self):
+        curr_time = int(round(time.time() * 1000))
+        if not self.stop_send and curr_time - self.time > self.rate:
+            msg = self.msgs[self.next_msg]
+            self.next_msg = (self.next_msg + 1) % len(self.msgs)
+            if self.next_msg == len(self.msgs) - 1 and not self.should_repeat:
+                self.stop_send = True
+            self.time = curr_time
+            return [msg]
+        return []

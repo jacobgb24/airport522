@@ -74,7 +74,6 @@ class Message:
             for i in range(len(Message.CHECK_GEN)):
                 msg_cpy[cur_shift + i] = str(int(Message.CHECK_GEN[i] != msg_cpy[cur_shift + i]))
         if '1' in msg_cpy[88:]:
-            print('bad CS')
             return False
 
         return True
@@ -82,7 +81,7 @@ class Message:
     def __str__(self):
         if self.valid:
             return ('#' * MSG_LEN) + f'\n{self.bin_msg}\n{self.icao}: DF={self.df}, CA={self.capability}, TC={self.typecode}, ' \
-                               f'TYPE={self.type.name}\n\tDATA={self.data}'
+                               f'TYPE={self.type.name}\n\tDATA={list(self.data.values())}'
         else:
             return f'Invalid ({self.bin_msg})'
 

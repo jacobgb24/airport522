@@ -1,8 +1,8 @@
 from message import Message
 from radio import Radio
 import argparse
-from utils import *
 import utils
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Runs Airport522, a ADS-B decoder")
@@ -18,7 +18,7 @@ if __name__ == '__main__':
         lat, lon = args.custom_coords.strip().split(',')
         utils.REF_LAT, utils.REF_LON = float(lat), float(lon)
     else:
-        set_loc_ip()
+        utils.set_loc_ip()
     print(f'Using reference coordinates of: {utils.REF_LAT}, {utils.REF_LON}')
 
     if args.input is not None:
