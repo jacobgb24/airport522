@@ -14,12 +14,13 @@ from aircraft import Aircraft, AircraftGroup
 plot_map = go.Figure()
 
 app = dash.Dash('Airport 522', assets_folder='gui_assets')
+app.title = 'Airport 522'
 app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'width': '100vw', 'height': '100vh'}, children=[
     html.Div(style={'flex': 8, 'display': 'flex'}, children=[
         html.Div(style={'flex': 1, 'padding': 8, 'display': 'flex', 'flexDirection': 'column'}, children=[
-            html.H2('Current Aircraft'),
+            html.H2('Aircraft'),
             html.Ul(id='aircraft-list', style={'flex': 1, 'borderStyle': 'solid', 'borderWidth': 2, 'margin': 0,
-                                               'list-style-type': 'none', 'padding': 0})
+                                               'list-style-type': 'none', 'padding': 0}, children=[])
         ]),
         html.Div(style={'flex': 1, 'padding': 8,  'display': 'flex', 'flexDirection': 'column'}, children=[
             html.H2('Map View'),
@@ -32,16 +33,20 @@ app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'widt
                      placeholder='Raw Messages appear here', readOnly=True)
 
     ]),
-    dcc.Interval(id='interval', interval=1000, n_intervals=0)
+    dcc.Interval(id='interval', interval=100, n_intervals=0)
 ])
 
 
 @app.callback([Output('message-log', 'value'), Output('map', 'figure'), Output('aircraft-list', 'children')],
               [Input('interval', 'n_intervals')],
-              [State('message-log', 'value'), State('map', 'figure')])
-def get_messages(n, old_msgs, fig):
+              [State('message-log', 'value'), State('map', 'figure'), State('aircraft-list', 'children')])
+def get_messages(n, old_msgs, fig, craft_list):
     msgs = radio.recv()
+    if not any([msg is not None and msg.valid for msg in msgs]):
+        # print('No msgs')
+        return old_msgs, fig, craft_list
     print(msgs)
+
     # put newest messages on top
     msg_log = '\n'.join([str(m) for m in reversed(msgs)]) + ('\n' if len(msgs) > 0 else '') + (old_msgs or '')
     for m in msgs:
@@ -98,8 +103,8 @@ def update_aircraft_map(fig, lat, lon, icao_id):
 
 if __name__ == '__main__':
     utils.set_loc_ip()
-    # radio = Radio()
-    radio = MockRadio('data/samples/three.txt', 1000, True)
+    radio = Radio()
+    # radio = MockRadio('data/samples/three.txt', 1000, True)
 
     tracked_aircraft = {}
     plot_map.add_trace(go.Scattermapbox(lat=[utils.REF_LAT], lon=[utils.REF_LON], mode='markers',

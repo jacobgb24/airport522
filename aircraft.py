@@ -3,6 +3,7 @@ from typing import List, Any
 from message import Message
 from data_handler import DataPoint
 
+
 class Aircraft:
 
     def __init__(self, icao_id, attrs):
@@ -18,7 +19,6 @@ class Aircraft:
         if item not in self.attrs.keys():
             return DataPoint('Unknown', 'Unknown', '')
         return self.attrs[item]
-
 
     def __eq__(self, other: Any):
         if isinstance(other, Aircraft):

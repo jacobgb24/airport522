@@ -40,8 +40,7 @@ class Radio:
             if self.raw_buf[i] < min_amp:
                 # print(f'BELOW AMP: {self.raw_buf[i]} < {min_amp}')
                 i += 1
-                continue
-            if self.is_preamble(self.raw_buf[i:i + len(Radio.PREAMB_KEY)]):
+            elif self.is_preamble(self.raw_buf[i:i + len(Radio.PREAMB_KEY)]):
                 # print('PREAMB' * 25)
                 start = i + len(self.PREAMB_KEY)
                 end = start + (MSG_LEN + 1) * 2  # multiply by 2 since one bit == two values
