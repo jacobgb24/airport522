@@ -4,7 +4,6 @@ from typing import Any, List, Union, Dict
 import numpy as np
 
 
-
 class DataPoint:
     """ Simple data class for holding information for a given value. Defines standard display method """
     def __init__(self, label: str, value: Any, unit: Union[str, None] = None):

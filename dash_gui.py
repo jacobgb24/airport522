@@ -8,6 +8,7 @@ import random
 import utils
 from radio import Radio, MockRadio
 from message import Message, MessageType
+from aircraft import Aircraft, AircraftGroup
 
 
 plot_map = go.Figure()
@@ -17,7 +18,8 @@ app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'widt
     html.Div(style={'flex': 8, 'display': 'flex'}, children=[
         html.Div(style={'flex': 1, 'padding': 8, 'display': 'flex', 'flexDirection': 'column'}, children=[
             html.H2('Current Aircraft'),
-            html.Ul(id='aircraft-list', style={'flex': 1, 'borderStyle': 'solid', 'borderWidth': 2, 'margin': 0})
+            html.Ul(id='aircraft-list', style={'flex': 1, 'borderStyle': 'solid', 'borderWidth': 2, 'margin': 0,
+                                               'list-style-type': 'none', 'padding': 0})
         ]),
         html.Div(style={'flex': 1, 'padding': 8,  'display': 'flex', 'flexDirection': 'column'}, children=[
             html.H2('Map View'),
@@ -34,7 +36,7 @@ app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'widt
 ])
 
 
-@app.callback([Output('message-log', 'value'), Output('map', 'figure')],
+@app.callback([Output('message-log', 'value'), Output('map', 'figure'), Output('aircraft-list', 'children')],
               [Input('interval', 'n_intervals')],
               [State('message-log', 'value'), State('map', 'figure')])
 def get_messages(n, old_msgs, fig):
@@ -44,10 +46,42 @@ def get_messages(n, old_msgs, fig):
     msg_log = '\n'.join([str(m) for m in reversed(msgs)]) + ('\n' if len(msgs) > 0 else '') + (old_msgs or '')
     for m in msgs:
         if m.valid:
+            AircraftGroup.update_aircraft(m)
             if m.type == MessageType.AIRBORNE_POSITION:
                 update_aircraft_map(fig, m.data['lat'].value, m.data['lon'].value, m.icao)
     # print(msg_log)
-    return msg_log, fig
+    return msg_log, fig, build_aircraft_list()
+
+
+def build_aircraft_list():
+    children = []
+    for craft in AircraftGroup.aircraft:
+        li = html.Li(id=f'li-{craft.icao}', style={'display': 'flex', 'padding': 8, 'border-bottom': '2px solid gray'}, children=[
+            html.Div(style={'flex': 3}, children=[
+                html.P(style={'margin': 0}, children=[
+                    html.H3(craft["id"].value, title='Flight ID', style={'display': 'inline', 'margin': 0}),
+                    html.P(f'  ({craft.icao})', title='ICAO ID', style={'display': 'inline'}),
+                    html.P(f'  -  {craft["type"].value}', title='Aircraft Type', style={'display': 'inline'}),
+                ]),
+                html.P(style={'margin': 0, 'marginLeft': 8}, children=[
+                    html.P(f'Horz. Vel.: {craft["horz_vel"].value_str} {craft["horz_vel"].unit}',
+                           title='Horizontal Velocity', style={'margin': 0}),
+                    html.P(f'Vert. Vel.: {craft["vert_vel"].value_str} {craft["vert_vel"].unit}',
+                           title='Vertical Velocity', style={'margin': 0}),
+                    html.P(f'Heading: {craft["heading"].value_str} {craft["heading"].unit}',
+                           title='Heading', style={'margin': 0})
+
+                ])
+            ]),
+            html.P(style={'flex': '0 1 auto', 'borderBottom': f'6px solid #{craft.icao}', 'height': 'auto',
+                          'textAlign': 'right'}, children=[
+                html.P(f'Lat: {craft["lat"].value_str} {craft["lat"].unit}', style={'margin': 0}),
+                html.P(f'Lon: {craft["lon"].value_str} {craft["lon"].unit}', style={'margin': 0}),
+                html.P(f'Alt: {craft["alt"].value} {craft["alt"].unit}', style={'margin': 0})
+            ])
+        ])
+        children.append(li)
+    return children
 
 
 def update_aircraft_map(fig, lat, lon, icao_id):
@@ -58,15 +92,16 @@ def update_aircraft_map(fig, lat, lon, icao_id):
             trace['lon'] = [lon]
             break
     else:
-        color_str = f'rgb({random.randint(0, 255)},{random.randint(0, 255)},{random.randint(0, 255)})'
         fig['data'].append(go.Scattermapbox(lat=[lat], lon=[lon], mode='markers', hoverinfo='lat+lon+name',
-                                            marker=dict(size=12, color=color_str), name=icao_id))
+                                            marker=dict(size=12, color=f'#{icao_id}'), name=icao_id))
 
 
 if __name__ == '__main__':
     utils.set_loc_ip()
-    radio = Radio()
-    # radio = MockRadio('data/synthetic/position.txt', 1000, False)
+    # radio = Radio()
+    radio = MockRadio('data/samples/general.txt', 1000, True)
+
+    tracked_aircraft = {}
     plot_map.add_trace(go.Scattermapbox(lat=[utils.REF_LAT], lon=[utils.REF_LON], mode='markers',
                                         marker=dict(size=16, color='rgb(255,0,0)'), hoverinfo='lat+lon+name',
                                         name='Ref. Loc.'))
