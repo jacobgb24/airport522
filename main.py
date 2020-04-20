@@ -1,7 +1,6 @@
 from radio import Radio, MockRadio
 from gui import run_gui
-from aircraft import AircraftICAODB
-
+from multiprocessing import Queue
 import argparse
 import utils
 import time
@@ -12,7 +11,7 @@ if __name__ == '__main__':
     inp_parser = parser.add_argument_group('input settings')
     inp_parser.add_argument('-i', '--input', help="File to read messages from. Default is live from radio")
     inp_parser.add_argument('-r', '--repeat', help='Whether file input should repeat', action='store_true')
-    inp_parser.add_argument('-d', '--delay', help='delay before restarting input. Default is 1', type=int)
+    inp_parser.add_argument('-d', '--delay', help='delay before starting/restarting input. Default is 1', type=int, default=1)
 
     parser.add_argument('-o', '--output', help="File to write output to. Default is none (only support in cli mode",
                         type=argparse.FileType('w'))
@@ -32,19 +31,20 @@ if __name__ == '__main__':
         utils.set_loc_ip()
     print(f'Using reference coordinates of: {utils.REF_LAT}, {utils.REF_LON}')
 
+    msg_que = Queue()
     if args.input is not None:
         print(f"Using MockRadio with {args.input}")
-        radio = MockRadio(args.input, args.repeat, args.delay)
+        radio = MockRadio(msg_que, args.input, args.repeat, args.delay, args.delay)
     else:
         print('Setting up radio')
-        radio = Radio()
+        radio = Radio(msg_que)
         print('Done')
 
     if args.gui:
         run_gui(radio, args.debug)
     else:
         while True:
-            msgs = radio.recv()
+            msgs = radio.get_all_queue()
             for m in msgs:
                 if m.valid:
                     print(m)

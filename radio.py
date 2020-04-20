@@ -1,6 +1,9 @@
 import sys
 import numpy as np
 import time
+from multiprocessing import Process, Queue
+from queue import Empty
+from abc import ABC, abstractmethod
 # so stupid it installs here, but too lazy to fix at this point
 sys.path.append('/usr/lib/python3.6/site-packages/')
 import adi
@@ -9,11 +12,39 @@ from message import Message
 from utils import *
 
 
-class Radio:
+def proc_loop(radio, queue: Queue):
+    while True:
+        msgs = radio.recv()
+        for m in msgs:
+            queue.put(m)
+
+
+class BaseRadio(ABC):
+
+    def __init__(self, msg_queue: Queue):
+        self.queue = msg_queue
+        self.radio_proc = Process(target=proc_loop, args=(self, msg_queue))
+        self.radio_proc.daemon = True
+        self.radio_proc.start()
+
+    def get_all_queue(self):
+        msgs = []
+        try:
+            while True:
+                msgs.append(self.queue.get_nowait())
+        except Empty:
+            return msgs
+
+    @abstractmethod
+    def recv(self):
+        pass
+
+
+class Radio(BaseRadio):
     PREAMB_KEY = [1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0]  # packets always start with this code
     BUFF_SIZE = 1024 * 200
 
-    def __init__(self):
+    def __init__(self, msg_queue: Queue):
         # set up SDR
         self.sdr = adi.Pluto()
         self.sdr.rx_lo = int(1090e6)  # 1090MHz
@@ -23,6 +54,7 @@ class Radio:
 
         self.raw_buf = []
         self.noise_floor = 1e6
+        super().__init__(msg_queue)
 
     def recv(self):
         raw = self.sdr.rx()
@@ -79,13 +111,12 @@ class Radio:
         return True
 
 
-class MockRadio:
+class MockRadio(BaseRadio):
     """
     'Radio' that reads messages from a file instead
-    Implements same ``recv()`` call and allows messages based on timestamp
     """
 
-    def __init__(self, in_file, repeat=True, repeat_delay=1, init_delay=1):
+    def __init__(self, msg_queue, in_file, repeat=True, repeat_delay=1, init_delay=1):
         """
 
         :param in_file: file of messages. Lines starting with `#` are ignored. Each line should be `timestamp binary_msg`
@@ -107,6 +138,7 @@ class MockRadio:
                         rel_start = int(ts)
                     self.msgs.append((int(ts) - rel_start, Message(m.strip())))
         self.init_time = round(time.time()) + init_delay
+        super().__init__(msg_queue)
 
     def recv(self):
         curr_time = round(time.time())

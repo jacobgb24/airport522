@@ -5,16 +5,18 @@ import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
 
 import utils
-from radio import Radio, MockRadio
-from message import Message, MessageType
-from aircraft import Aircraft, AircraftGroup
+import logging
+from typing import Union
+
+from radio import BaseRadio
+from message import MessageType
+from aircraft import AircraftGroup
 
 # suppress logging of POST requests
-import logging
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-radio = None
+radio: Union[None, BaseRadio] = None
 plot_map = go.Figure()
 
 app = dash.Dash('Airport 522', assets_folder='gui_assets')
@@ -33,11 +35,11 @@ app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'widt
     ]),
     html.Div(style={'flex': 2, 'padding': 8}, children=[
         html.H2('Raw Message Log'),
-        dcc.Textarea(id='message-log', style={'height': '50%', 'width': '100%', 'padding': 0, 'resize': 'none'},
+        dcc.Textarea(id='message-log', style={'height': '70%', 'width': '100%', 'padding': 0, 'resize': 'none'},
                      placeholder='Raw Messages appear here', readOnly=True)
 
     ]),
-    dcc.Interval(id='interval', interval=100, n_intervals=0)
+    dcc.Interval(id='interval', interval=1000, n_intervals=0)
 ])
 
 
@@ -45,19 +47,19 @@ app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'widt
               [Input('interval', 'n_intervals')],
               [State('message-log', 'value'), State('map', 'figure'), State('aircraft-list', 'children')])
 def get_messages(n, old_msgs, fig, craft_list):
-    msgs = radio.recv()
-    if not any([msg is not None and msg.valid for msg in msgs]):
+    msgs = radio.get_all_queue()
+    valid = [m for m in msgs if m is not None and m.valid]
+    if len(valid) == 0:
         # print('No msgs')
         return old_msgs, fig, craft_list
-    print(msgs)
+    print(valid)
 
     # put newest messages on top
-    msg_log = '\n'.join([str(m) for m in reversed(msgs)]) + ('\n' if len(msgs) > 0 else '') + (old_msgs or '')
-    for m in msgs:
-        if m.valid:
-            AircraftGroup.update_aircraft(m)
-            if m.type == MessageType.AIRBORNE_POSITION:
-                update_aircraft_map(fig, m.data['lat'].value, m.data['lon'].value, m.icao)
+    msg_log = '\n'.join([str(m) for m in reversed(valid)]) + ('\n' if len(msgs) > 0 else '') + (old_msgs or '')
+    for m in valid:
+        AircraftGroup.update_aircraft(m)
+        if m.type == MessageType.AIRBORNE_POSITION:
+            update_aircraft_map(fig, m.data['lat'].value, m.data['lon'].value, m.icao)
     # print(msg_log)
     return msg_log, fig, build_aircraft_list()
 

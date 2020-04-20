@@ -1,6 +1,6 @@
 import utils
 from utils import *
-from typing import Any, List, Union, Dict
+from typing import Any, Union, Dict
 import numpy as np
 
 
@@ -33,7 +33,6 @@ class DataHandler:
 
     @staticmethod
     def handle_identity(tc, data):
-        print(tc)
         vals = {}
         # table to translate int to character
         char_table = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######"
