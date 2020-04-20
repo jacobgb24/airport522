@@ -1,17 +1,28 @@
-from message import Message
-from radio import Radio
+from radio import Radio, MockRadio
+from gui import run_gui
+from aircraft import AircraftICAODB
+
 import argparse
 import utils
-
+import time
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Runs Airport522, a ADS-B decoder")
-    parser.add_argument('-i', '--input', help="File to read messages from. Default is live from radio", type=argparse.FileType('r'))
-    parser.add_argument('-o', '--output', help="File to write output to. Default is none", type=argparse.FileType('w'))
+
+    inp_parser = parser.add_argument_group('input settings')
+    inp_parser.add_argument('-i', '--input', help="File to read messages from. Default is live from radio")
+    inp_parser.add_argument('-r', '--repeat', help='Whether file input should repeat', action='store_true')
+    inp_parser.add_argument('-d', '--delay', help='delay before restarting input. Default is 1', type=int)
+
+    parser.add_argument('-o', '--output', help="File to write output to. Default is none (only support in cli mode",
+                        type=argparse.FileType('w'))
     parser.add_argument('--output-invalid', action='store_true', help="Include invalid decoding in output")
     parser.add_argument('-c', '--custom-coords', default=None,
                         help="Custom coordinates to use for reference. Format as `lat,lon`. "
                              "Default is based on IP address. Need ~300km accuracy")
+
+    parser.add_argument('-g', '--gui', help='launch dash GUI', action='store_true')
+    parser.add_argument('--debug', help='Put GUI in debug mode', action='store_true')
     args = parser.parse_args()
 
     if args.custom_coords is not None:
@@ -22,17 +33,20 @@ if __name__ == '__main__':
     print(f'Using reference coordinates of: {utils.REF_LAT}, {utils.REF_LON}')
 
     if args.input is not None:
-        for m in args.input:
-            if not m.startswith('#'):
-                print(Message(m.strip()))
+        print(f"Using MockRadio with {args.input}")
+        radio = MockRadio(args.input, args.repeat, args.delay)
     else:
         print('Setting up radio')
         radio = Radio()
         print('Done')
+
+    if args.gui:
+        run_gui(radio, args.debug)
+    else:
         while True:
             msgs = radio.recv()
             for m in msgs:
                 if m.valid:
                     print(m)
                 if args.output is not None and (m.valid or args.output_invalid):
-                    args.output.write(f'{m.bin_msg}\n')
+                    args.output.write(f'{round(time.time())} {m.bin_msg}\n')

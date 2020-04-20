@@ -3,14 +3,18 @@ import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
-import random
 
 import utils
 from radio import Radio, MockRadio
 from message import Message, MessageType
 from aircraft import Aircraft, AircraftGroup
 
+# suppress logging of POST requests
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 
+radio = None
 plot_map = go.Figure()
 
 app = dash.Dash('Airport 522', assets_folder='gui_assets')
@@ -64,11 +68,12 @@ def build_aircraft_list():
         li = html.Li(id=f'li-{craft.icao}', style={'display': 'flex', 'padding': 8, 'border-bottom': '2px solid gray'}, children=[
             html.Div(style={'flex': 3}, children=[
                 html.P(style={'margin': 0}, children=[
-                    html.H3(craft["id"].value, title='Flight ID', style={'display': 'inline', 'margin': 0}),
-                    html.P(f'  ({craft.icao})', title='ICAO ID', style={'display': 'inline'}),
-                    html.P(f'  -  {craft["type"].value}', title='Aircraft Type', style={'display': 'inline'}),
+                    html.H3(f'{craft.model}', title="Model", style={'display': 'inline', 'margin': 0}),
+                    html.P(f'  |  {craft.operator}', title='Operator', style={'display': 'inline'}),
                 ]),
                 html.P(style={'margin': 0, 'marginLeft': 8}, children=[
+                    html.B(f'ID: {craft["id"].value}', title='Flight ID', style={'display': 'inline', 'margin': 0}),
+                    html.P(f'  ({craft.icao})', title='ICAO ID', style={'display': 'inline'}),
                     html.P(f'Horz. Vel.: {craft["horz_vel"].value_str} {craft["horz_vel"].unit}',
                            title='Horizontal Velocity', style={'margin': 0}),
                     html.P(f'Vert. Vel.: {craft["vert_vel"].value_str} {craft["vert_vel"].unit}',
@@ -101,12 +106,10 @@ def update_aircraft_map(fig, lat, lon, icao_id):
                                             marker=dict(size=12, color=f'#{icao_id}'), name=icao_id))
 
 
-if __name__ == '__main__':
-    utils.set_loc_ip()
-    radio = Radio()
-    # radio = MockRadio('data/samples/three.txt', 1000, True)
+def run_gui(loc_radio, debug):
+    global radio
+    radio = loc_radio
 
-    tracked_aircraft = {}
     plot_map.add_trace(go.Scattermapbox(lat=[utils.REF_LAT], lon=[utils.REF_LON], mode='markers',
                                         marker=dict(size=16, color='rgb(255,0,0)'), hoverinfo='lat+lon+name',
                                         name='Ref. Loc.'))
@@ -114,5 +117,4 @@ if __name__ == '__main__':
                                        center=dict(lat=utils.REF_LAT, lon=utils.REF_LON)),
                            legend=dict(x=0, y=1, bgcolor='rgba(224,224,224,0.85)'),
                            margin=dict(l=0, r=0, t=0, b=0, pad=0))
-    # update_aircraft_map(utils.REF_LAT + .1, utils.REF_LON, 'test')
-    app.run_server(debug=True)
+    app.run_server(debug=debug)

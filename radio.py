@@ -80,26 +80,44 @@ class Radio:
 
 
 class MockRadio:
+    """
+    'Radio' that reads messages from a file instead
+    Implements same ``recv()`` call and allows messages based on timestamp
+    """
 
-    def __init__(self, in_file, rate=1000, repeat=True):
+    def __init__(self, in_file, repeat=True, repeat_delay=1, init_delay=1):
+        """
+
+        :param in_file: file of messages. Lines starting with `#` are ignored. Each line should be `timestamp binary_msg`
+        :param repeat: whether radio should repeat file messages in a loop
+        :param repeat_delay: wait in seconds before repeat starts
+        :param init_delay: how long to wait initially before messages are sent
+        """
         self.msgs = []
         self.next_msg = 0
         self.should_repeat = repeat
+        self.repeat_delay = repeat_delay
         self.stop_send = False
         with open(in_file, 'r') as inp:
+            rel_start = None
             for m in inp.readlines():
                 if not m.startswith('#'):
-                    self.msgs.append(Message(m.strip()))
-        self.rate = rate
-        self.time = int(round(time.time() * 1000))
+                    ts, m = m.strip().split(' ')
+                    if rel_start is None:
+                        rel_start = int(ts)
+                    self.msgs.append((int(ts) - rel_start, Message(m.strip())))
+        self.init_time = round(time.time()) + init_delay
 
     def recv(self):
-        curr_time = int(round(time.time() * 1000))
-        if not self.stop_send and curr_time - self.time > self.rate:
-            msg = self.msgs[self.next_msg]
+        curr_time = round(time.time())
+        if not self.stop_send and curr_time - self.init_time >= self.msgs[self.next_msg][0]:
+            msg = self.msgs[self.next_msg][1]
+            if self.next_msg == len(self.msgs) - 1:
+                if not self.should_repeat:
+                    self.stop_send = True
+                else:
+                    self.init_time = curr_time + self.repeat_delay
             self.next_msg = (self.next_msg + 1) % len(self.msgs)
-            if self.next_msg == len(self.msgs) - 1 and not self.should_repeat:
-                self.stop_send = True
-            self.time = curr_time
+
             return [msg]
         return []
