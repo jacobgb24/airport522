@@ -6,17 +6,47 @@ from dash.dependencies import Input, Output, State
 
 import utils
 import logging
-from typing import Union
+from typing import Union, List
 
 from radio import BaseRadio
-from message import MessageType
-from aircraft import AircraftGroup
+from message import Message, MessageType
+from aircraft import Aircraft
 
 # suppress logging of POST requests
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-radio: Union[None, BaseRadio] = None
+
+class GUIData:
+    aircraft: List[Aircraft] = []
+    msg_log: List[str] = []
+    radio: Union[None, BaseRadio] = None
+
+    @classmethod
+    def add_message(cls, msg: Message):
+        cls.msg_log.insert(0, str(msg))
+        cls._update_aircraft(msg)
+
+        if len(cls.msg_log) > 1000:
+            cls.msg_log = cls.msg_log[100:]
+
+    @classmethod
+    def _update_aircraft(cls, msg: Message):
+        for craft in cls.aircraft:
+            if craft == msg.icao:
+                craft.update(msg.data)
+                break
+        else:
+            cls.aircraft.insert(0, Aircraft(msg.icao, msg.data))
+
+        if len(cls.aircraft) > 100:
+            cls.aircraft = cls.aircraft[25:]
+
+    @classmethod
+    def get_msg_log(cls) -> str:
+        return '\n'.join(cls.msg_log)
+
+
 plot_map = go.Figure()
 
 app = dash.Dash('Airport 522', assets_folder='gui_assets')
@@ -47,26 +77,28 @@ app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'widt
               [Input('interval', 'n_intervals')],
               [State('message-log', 'value'), State('map', 'figure'), State('aircraft-list', 'children')])
 def get_messages(n, old_msgs, fig, craft_list):
-    msgs = radio.get_all_queue()
+    msgs = GUIData.radio.get_all_queue()
     valid = [m for m in msgs if m is not None and m.valid]
-    if len(valid) == 0:
+    if len(valid) == 0 and not (len(craft_list) < len(GUIData.aircraft)):
         # print('No msgs')
         return old_msgs, fig, craft_list
     print(valid)
 
-    # put newest messages on top
-    msg_log = '\n'.join([str(m) for m in reversed(valid)]) + ('\n' if len(msgs) > 0 else '') + (old_msgs or '')
-    for m in valid:
-        AircraftGroup.update_aircraft(m)
-        if m.type == MessageType.AIRBORNE_POSITION:
-            update_aircraft_map(fig, m.data['lat'].value, m.data['lon'].value, m.icao)
-    # print(msg_log)
-    return msg_log, fig, build_aircraft_list()
+    # add messages/aircraft to global data
+    for m in reversed(valid):
+        GUIData.add_message(m)
+
+    # set locations on map for all known aircraft
+    for craft in GUIData.aircraft:
+        if craft['lat'].value_str != 'Unknown':
+            update_aircraft_map(fig, craft['lat'].value, craft['lon'].value, craft.icao)
+
+    return GUIData.get_msg_log(), fig, build_aircraft_ul()
 
 
-def build_aircraft_list():
+def build_aircraft_ul():
     children = []
-    for craft in AircraftGroup.aircraft:
+    for craft in GUIData.aircraft:
         li = html.Li(id=f'li-{craft.icao}', style={'display': 'flex', 'padding': 8, 'border-bottom': '2px solid gray'}, children=[
             html.Div(style={'flex': 3}, children=[
                 html.P(style={'margin': 0}, children=[
@@ -108,9 +140,8 @@ def update_aircraft_map(fig, lat, lon, icao_id):
                                             marker=dict(size=12, color=f'#{icao_id}'), name=icao_id))
 
 
-def run_gui(loc_radio, debug):
-    global radio
-    radio = loc_radio
+def run_gui(radio, debug):
+    GUIData.radio = radio
 
     plot_map.add_trace(go.Scattermapbox(lat=[utils.REF_LAT], lon=[utils.REF_LON], mode='markers',
                                         marker=dict(size=16, color='rgb(255,0,0)'), hoverinfo='lat+lon+name',

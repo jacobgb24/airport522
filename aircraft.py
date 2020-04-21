@@ -32,19 +32,6 @@ class Aircraft:
         return self.last_update > other.last_update
 
 
-class AircraftGroup:
-    aircraft: List[Aircraft] = []
-
-    @classmethod
-    def update_aircraft(cls, msg: Message):
-        for craft in cls.aircraft:
-            if craft == msg.icao:
-                craft.update(msg.data)
-                break
-        else:
-            cls.aircraft.insert(0, Aircraft(msg.icao, msg.data))
-
-
 class AircraftICAODB:
     mapping = {}
     # file from - https://junzis.com/adb/data
