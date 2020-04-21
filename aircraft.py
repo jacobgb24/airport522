@@ -4,16 +4,17 @@ from message import Message
 from data_handler import DataPoint
 from csv import reader
 
+
 class Aircraft:
 
     def __init__(self, icao_id, attrs):
         self.icao = icao_id
-        self.last_update = time()
+        self.last_update = round(time())
         self.attrs = attrs
         self.model, self.operator = AircraftICAODB.get_info(icao_id)
 
     def update(self, new_attrs):
-        self.last_update = time()
+        self.last_update = round(time())
         self.attrs.update(new_attrs)
 
     def __getitem__(self, item):
@@ -35,6 +36,7 @@ class Aircraft:
 class AircraftICAODB:
     mapping = {}
     # file from - https://junzis.com/adb/data
+    # it's outdated, but the best free source I could find
     _file = 'aircraft_db.csv'
 
     @classmethod

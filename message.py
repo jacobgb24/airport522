@@ -31,7 +31,7 @@ class Message:
         if self.valid:
             # these are all straight from headers
             self.df = bin2int(self.bin_msg[:5])
-            self.icao = bin2hex(self.bin_msg[8:32])
+            self.icao = bin2hex(self.bin_msg[8:32]).upper()
             self.capability = bin2int(self.bin_msg[5:8])
             self.typecode = bin2int(self.bin_msg[32:37])
             self.bin_data = self.bin_msg[37:88]

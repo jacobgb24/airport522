@@ -7,6 +7,7 @@ from dash.dependencies import Input, Output, State
 import utils
 import logging
 from typing import Union, List
+import time
 
 from radio import BaseRadio
 from message import Message, MessageType
@@ -41,6 +42,19 @@ class GUIData:
 
         if len(cls.aircraft) > 100:
             cls.aircraft = cls.aircraft[25:]
+        # remove aircraft we haven't heard from in 2 minutes
+
+    @classmethod
+    def remove_old(cls) -> List[str]:
+        """ Removes any aircraft that haven't recently changed. Returns list of removed ICAOs"""
+        to_remove = []
+        for craft in cls.aircraft:
+            if round(time.time()) - craft.last_update > 180:
+                to_remove.append(craft)
+        for craft in to_remove:
+            cls.aircraft.remove(craft)
+
+        return [c.icao for c in to_remove]
 
     @classmethod
     def get_msg_log(cls) -> str:
@@ -79,10 +93,15 @@ app.layout = html.Div(style={'display': 'flex', 'flexDirection': 'column', 'widt
 def get_messages(n, old_msgs, fig, craft_list):
     msgs = GUIData.radio.get_all_queue()
     valid = [m for m in msgs if m is not None and m.valid]
+
+    # refresh data to remove old aircraft and delete them from map
+    for r in GUIData.remove_old():
+        remove_aircraft_map(fig, r)
+
     if len(valid) == 0 and not (len(craft_list) < len(GUIData.aircraft)):
         # print('No msgs')
-        return old_msgs, fig, craft_list
-    print(valid)
+        return old_msgs, fig, build_aircraft_ul()
+    print(f"[{' '.join([m.icao for m in valid])}]")
 
     # add messages/aircraft to global data
     for m in reversed(valid):
@@ -103,10 +122,12 @@ def build_aircraft_ul():
             html.Div(style={'flex': 3}, children=[
                 html.P(style={'margin': 0}, children=[
                     html.H3(f'{craft.model}', title="Model", style={'display': 'inline', 'margin': 0}),
-                    html.P(f'  |  {craft.operator}', title='Operator', style={'display': 'inline'}),
+                    html.H4(f'  |  {craft.operator}', title='Operator', style={'display': 'inline'}),
+                    html.I(f'  (Updated: {round(time.time()) - craft.last_update}s ago)', style={'display': 'inline'})
+
                 ]),
-                html.P(style={'margin': 0, 'marginLeft': 8}, children=[
-                    html.B(f'ID: {craft["id"].value}', title='Flight ID', style={'display': 'inline', 'margin': 0}),
+                html.P(style={'margin': 0, 'marginLeft': 12}, children=[
+                    html.P(f'ID: {craft["id"].value}', title='Flight ID', style={'display': 'inline', 'margin': 0}),
                     html.P(f'  ({craft.icao})', title='ICAO ID', style={'display': 'inline'}),
                     html.P(f'Horz. Vel.: {craft["horz_vel"].value_str} {craft["horz_vel"].unit}',
                            title='Horizontal Velocity', style={'margin': 0}),
@@ -138,6 +159,10 @@ def update_aircraft_map(fig, lat, lon, icao_id):
     else:
         fig['data'].append(go.Scattermapbox(lat=[lat], lon=[lon], mode='markers', hoverinfo='lat+lon+name',
                                             marker=dict(size=12, color=f'#{icao_id}'), name=icao_id))
+
+
+def remove_aircraft_map(fig, icao_id):
+    fig['data'] = [t for t in fig['data'] if t['name'] != icao_id]
 
 
 def run_gui(radio, debug):
