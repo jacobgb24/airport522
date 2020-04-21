@@ -3,7 +3,9 @@ import numpy as np
 import time
 from multiprocessing import Process, Queue
 from queue import Empty
+from typing import List
 from abc import ABC, abstractmethod
+
 # so stupid it installs here, but too lazy to fix at this point
 sys.path.append('/usr/lib/python3.6/site-packages/')
 import adi
@@ -12,7 +14,8 @@ from message import Message
 from utils import *
 
 
-def proc_loop(radio, queue: Queue):
+def proc_loop(radio, queue: Queue) -> None:
+    """ loop meant for separate process. Repeatedly calls radio.recv() and puts messages into queue """
     while True:
         msgs = radio.recv()
         for m in msgs:
@@ -20,6 +23,10 @@ def proc_loop(radio, queue: Queue):
 
 
 class BaseRadio(ABC):
+    """
+    Abstract Radio class
+    handles spawning of process and method for retrieving messages
+    """
 
     def __init__(self, msg_queue: Queue):
         self.queue = msg_queue
@@ -27,7 +34,12 @@ class BaseRadio(ABC):
         self.radio_proc.daemon = True
         self.radio_proc.start()
 
-    def get_all_queue(self):
+    def get_all_queue(self) -> List[Message]:
+        """
+        Main method for getting messages from radio.
+        Will return whatever is available at the moment in the queue
+        :return: a list of messages (possibly empty)
+        """
         msgs = []
         try:
             while True:
@@ -37,10 +49,14 @@ class BaseRadio(ABC):
 
     @abstractmethod
     def recv(self):
+        """ Method for getting messages directly from radio """
         pass
 
 
 class Radio(BaseRadio):
+    """
+    Radio using the actual SDR backend
+    """
     PREAMB_KEY = [1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0]  # packets always start with this code
     BUFF_SIZE = 1024 * 200
 
@@ -64,7 +80,8 @@ class Radio(BaseRadio):
             return self.handle_raw()
         return []
 
-    def handle_raw(self):
+    def handle_raw(self) -> List[Message]:
+        """ Runs through message buffer to find valid messages """
         min_amp = self._get_min_amp()
         msgs = []
         i = 0
@@ -90,8 +107,8 @@ class Radio(BaseRadio):
         total_len = len(self.raw_buf)
         means = (
             np.array(self.raw_buf[: total_len // window * window])
-            .reshape(-1, window)
-            .mean(axis=1)
+                .reshape(-1, window)
+                .mean(axis=1)
         )
         self.noise_floor = min(min(means), self.noise_floor)
         return 4 * self.noise_floor  # not sure how they get this, but should be ~10dB
@@ -140,13 +157,14 @@ class MockRadio(BaseRadio):
         self.init_time = round(time.time()) + init_delay
         super().__init__(msg_queue)
 
-    def recv(self):
+    def recv(self) -> List[Message]:
         curr_time = round(time.time())
         if not self.stop_send and curr_time - self.init_time >= self.msgs[self.next_msg][0]:
             msg = self.msgs[self.next_msg][1]
             if self.next_msg == len(self.msgs) - 1:
                 if not self.should_repeat:
                     self.stop_send = True
+                    print('File EOF')
                 else:
                     self.init_time = curr_time + self.repeat_delay
             self.next_msg = (self.next_msg + 1) % len(self.msgs)

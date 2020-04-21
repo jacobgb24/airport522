@@ -1,3 +1,4 @@
+# synthetic data
 # use reference position of 52.258,3.918
 # expected: 52.25720, 3.91937
 # from: https://mode-s.org/decode/adsb/airborne-position.html

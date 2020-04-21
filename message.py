@@ -4,6 +4,7 @@ from enum import Enum
 
 
 class MessageType(Enum):
+    """ Enum defining what each TC relates to"""
     AIRCRAFT_ID = range(1, 5)
     SURFACE_POSITION = range(5, 9)
     AIRBORNE_POSITION = list(range(9, 19)) + list(range(20, 23))
@@ -16,6 +17,7 @@ class MessageType(Enum):
 
     @classmethod
     def from_tc(cls, tc):
+        """ Returns appropriate MessageType for a given TC """
         for e in cls:
             if tc in e.value:
                 return e
@@ -23,9 +25,13 @@ class MessageType(Enum):
 
 
 class Message:
+    """
+    Class that holds a single ADS-B message
+    can be built from a binary string or a raw signal
+    """
     CHECK_GEN = '1111111111111010000001001'  # used as key in crc
 
-    def __init__(self, bin_msg):
+    def __init__(self, bin_msg: str):
         self.bin_msg = bin_msg
         self.valid = self._is_valid()
         if self.valid:
@@ -45,7 +51,8 @@ class Message:
         return cls(cls.raw2bin(raw))
 
     @staticmethod
-    def raw2bin(raw):
+    def raw2bin(raw) -> str:
+        """ Converts raw messages (from radio) into a binary string"""
         if len(raw) == 0:
             return ''
         thresh = max(raw) * .2  # want data at least this strong
@@ -63,6 +70,7 @@ class Message:
         return msg
 
     def _is_valid(self) -> bool:
+        """ Calculates validity of message based on length and CRC. Use msg.valid to get result """
         if len(self.bin_msg) != MSG_LEN:
             # print(f'bad len: {len(self.bin_msg)}')
             return False
@@ -78,14 +86,9 @@ class Message:
 
         return True
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self.valid:
-            return ('#' * MSG_LEN) + f'\n{self.bin_msg}\n{self.icao}: DF={self.df}, CA={self.capability}, TC={self.typecode}, ' \
-                               f'TYPE={self.type.name}\n\tDATA={list(self.data.values())}'
+            return ('#' * MSG_LEN) + f'\n{self.bin_msg}\n{self.icao}: DF={self.df}, CA={self.capability}, ' \
+                                     f'TC={self.typecode}, TYPE={self.type.name}\n\tDATA={list(self.data.values())}'
         else:
             return f'Invalid ({self.bin_msg})'
-
-
-
-
-

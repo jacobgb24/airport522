@@ -1,19 +1,19 @@
 from time import time
-from typing import List, Any
-from message import Message
+from typing import Tuple, Any, Dict
 from data_handler import DataPoint
 from csv import reader
 
 
 class Aircraft:
 
-    def __init__(self, icao_id, attrs):
+    def __init__(self, icao_id: str, attrs: Dict[str, DataPoint]):
         self.icao = icao_id
         self.last_update = round(time())
         self.attrs = attrs
         self.model, self.operator = AircraftICAODB.get_info(icao_id)
 
     def update(self, new_attrs):
+        """ Update aircraft's info with new_attrs from a message """
         self.last_update = round(time())
         self.attrs.update(new_attrs)
 
@@ -34,13 +34,15 @@ class Aircraft:
 
 
 class AircraftICAODB:
+    """ Static class for getting data from CSV file """
     mapping = {}
     # file from - https://junzis.com/adb/data
     # it's outdated, but the best free source I could find
+    # file not in repo as it's not mine
     _file = 'aircraft_db.csv'
 
     @classmethod
-    def get_info(cls, icao_id):
+    def get_info(cls, icao_id: str) -> Tuple[str, str]:
         """ Returns the model and operator of an aircraft with the given ICAO ID """
         if len(cls.mapping) == 0:
             cls._generate_mapping()

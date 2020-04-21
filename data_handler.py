@@ -6,6 +6,7 @@ import numpy as np
 
 class DataPoint:
     """ Simple data class for holding information for a given value. Defines standard display method """
+
     def __init__(self, label: str, value: Any, unit: Union[str, None] = None):
         self.label = label
         self.value = value
@@ -21,8 +22,10 @@ class DataPoint:
 
 class DataHandler:
     """ Static class for handling interpretation of message payloads """
+
     @classmethod
     def dispatch(cls, msg) -> Dict[str, DataPoint]:
+        """ calls appropriate method base on MessageType """
         from message import MessageType
         switch = {
             MessageType.AIRCRAFT_ID: cls.handle_identity,
@@ -32,7 +35,8 @@ class DataHandler:
         return switch.get(msg.type, lambda tc, data: {})(msg.typecode, msg.bin_data)
 
     @staticmethod
-    def handle_identity(tc, data):
+    def handle_identity(tc, data) -> Dict[str, DataPoint]:
+        """ Handles aircraft identity messages """
         vals = {}
         # table to translate int to character
         char_table = "#ABCDEFGHIJKLMNOPQRSTUVWXYZ#####_###############0123456789######"
@@ -53,7 +57,8 @@ class DataHandler:
         return vals
 
     @staticmethod
-    def handle_velocity(tc, data):
+    def handle_velocity(tc, data) -> Dict[str, DataPoint]:
+        """ Handles velocity messages """
         vals = {}
         subtype = bin2int(data[:3])
         # ret['supersonic'] = subtype == 2 or subtype == 4
@@ -78,7 +83,8 @@ class DataHandler:
         return vals
 
     @staticmethod
-    def handle_position(tc, data):
+    def handle_position(tc, data) -> Dict[str, DataPoint]:
+        """ Handles positional messages. Accesses utils.REF_LAT and utils.REF_LON. These values must be set"""
         vals = {}
 
         is_odd = bin2bool(data[16])
@@ -86,7 +92,7 @@ class DataHandler:
         lon_cpr = bin2int(data[34:51]) / 131072
 
         # number of zones depends on message type
-        d_lat = 360/59 if is_odd else 360/60  # constants predefined
+        d_lat = 360 / 59 if is_odd else 360 / 60  # constants predefined
         lat_ind = np.floor(utils.REF_LAT / d_lat) + np.floor((utils.REF_LAT % d_lat) / d_lat - lat_cpr + 0.5)
         lat = d_lat * (lat_ind + lat_cpr)
         vals['lat'] = DataPoint('Latitude', lat, 'deg')
